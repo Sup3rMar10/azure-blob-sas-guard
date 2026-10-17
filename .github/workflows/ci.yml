@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Install the pinned Azurite emulator
+        run: npm install --global azurite@3.37.0
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Tests (they start Azurite over HTTPS and over HTTP themselves, with throwaway keys and certificates)
+        run: python -m pytest
+      - name: This repository must not contain a SAS token itself
+        run: python -m sasguard scan .
+
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
